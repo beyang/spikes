@@ -1,0 +1,25 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "modal-playground"
+version = "0.1.0"
+description = "Modal spike project"
+requires-python = ">=3.9"
+dependencies = [
+    "modal>=1.2.1",
+    "transformers>=4.36.0",
+    "torch>=2.0.0",
+    "accelerate>=0.24.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "black",
+    "ruff",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["playground"]
