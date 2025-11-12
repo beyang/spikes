@@ -12,6 +12,7 @@ image = modal.Image.debian_slim().pip_install(
     "transformers>=4.36.0",
     "torch>=2.0.0",
     "accelerate>=0.24.0",
+    "fastapi",
 )
 
 
@@ -20,6 +21,7 @@ image = modal.Image.debian_slim().pip_install(
     image=image,
     gpu="A100",
     timeout=600,
+    min_containers=1,
 )
 class QwenModel:
     """Class to run Qwen 2.5 7B on Modal."""
@@ -27,7 +29,7 @@ class QwenModel:
     @modal.enter()
     def setup(self):
         """Initialize the model and tokenizer."""
-        from transformers import AutoTokenizer, AutoModelForCausalLM  # type: ignore
+        from transformers import AutoModelForCausalLM, AutoTokenizer
 
         model_name = "Qwen/Qwen2.5-7B"
 
@@ -61,7 +63,9 @@ class QwenModel:
             temperature=0.6,
         )
 
-        response = self.tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
+        response = self.tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[
+            0
+        ]
 
         return response
 
