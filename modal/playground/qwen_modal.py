@@ -15,48 +15,55 @@ image = modal.Image.debian_slim().pip_install(
 )
 
 
-# Create a function to run on the A100 instance
-@app.function(
+# Create a class to run on the A100 instance
+@app.cls(
     image=image,
     gpu="A100",
     timeout=600,
 )
-def run_qwen(prompt: str) -> str:
-    """Run a prompt through Qwen 2.5 7B."""
-    from transformers import AutoTokenizer, AutoModelForCausalLM  # type: ignore
+class QwenModel:
+    """Class to run Qwen 2.5 7B on Modal."""
 
-    model_name = "Qwen/Qwen2.5-7B"
+    @modal.enter()
+    def setup(self):
+        """Initialize the model and tokenizer."""
+        from transformers import AutoTokenizer, AutoModelForCausalLM  # type: ignore
 
-    # Load tokenizer and model
-    print(f"Loading {model_name}...")
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = AutoModelForCausalLM.from_pretrained(
-        model_name,
-        torch_dtype="auto",
-        device_map="auto",
-    )
+        model_name = "Qwen/Qwen2.5-7B"
 
-    # Prepare input
-    messages = [{"role": "user", "content": prompt}]
-    text = tokenizer.apply_chat_template(
-        messages,
-        tokenize=False,
-        add_generation_prompt=True,
-    )
-    model_inputs = tokenizer(text, return_tensors="pt").to(model.device)
+        # Load tokenizer and model
+        print(f"Loading {model_name}...")
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        self.model = AutoModelForCausalLM.from_pretrained(
+            model_name,
+            dtype="auto",
+            device_map="auto",
+        )
 
-    # Generate response
-    print(f"Generating response for prompt: {prompt}")
-    generated_ids = model.generate(
-        **model_inputs,
-        max_new_tokens=512,
-        top_p=0.9,
-        temperature=0.6,
-    )
+    @modal.method()
+    def run(self, prompt: str) -> str:
+        """Run a prompt through Qwen 2.5 7B."""
+        # Prepare input
+        messages = [{"role": "user", "content": prompt}]
+        text = self.tokenizer.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=True,
+        )
+        model_inputs = self.tokenizer(text, return_tensors="pt").to(self.model.device)
 
-    response = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
+        # Generate response
+        print(f"Generating response for prompt: {prompt}")
+        generated_ids = self.model.generate(
+            **model_inputs,
+            max_new_tokens=512,
+            top_p=0.9,
+            temperature=0.6,
+        )
 
-    return response
+        response = self.tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
+
+        return response
 
 
 @app.local_entrypoint()
@@ -66,5 +73,5 @@ def main():
     print(f"Prompt: {prompt}")
     print("-" * 50)
 
-    result = run_qwen.remote(prompt)
+    result = QwenModel().run.remote(prompt)
     print(f"Response:\n{result}")
